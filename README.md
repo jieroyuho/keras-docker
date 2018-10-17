@@ -2,8 +2,8 @@
 
 docker login 
 
-docker build -t jiero/keras-docker:0.2.2 .
+docker build -t jiero/keras-docker:0.3 .
 
 docler image ls
 
-docker push jiero/keras-docker:0.2.2 .
+docker push jiero/keras-docker:0.3 
