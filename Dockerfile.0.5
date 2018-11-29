@@ -33,6 +33,13 @@ RUN pip  --no-cache-dir install \
 WORKDIR "root"
 
 COPY VGG16_5485_For5.h5 /root
+COPY VGG16_5485_Label.py /root
+COPY VGG16Run.sh /root
+COPY datafilter.py /root
+COPY makedatasetunknown.py /root
+COPY makedatasetunknown.inday.py /root
+COPY post_freqarray.py /root
+COPY post_freqarray_combine.py /root
 COPY freqrun.sh /root
 COPY freq.sql /root
 
@@ -44,4 +51,4 @@ COPY freq.sql /root
 #CMD ["/bin/bash"]
 
 #ENTRYPOINT service mysql restart && bash
-ENTRYPOINT sh ./freqrun.sh && bash
+ENTRYPOINT sh ./freqrun.sh > /data/freq.log 2>&1 && bash
