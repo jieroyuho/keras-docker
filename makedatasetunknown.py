@@ -348,13 +348,13 @@ startendlensec=startendlenmin*60
 print('read table index',datatableindex)
 
 #create datatableindex
-sql='create table if not exists '+datatableindex+' as SELECT sip,dip,MAX(timestamp) - MIN(timestamp) as timedistance FROM  `'+datatable+'`  GROUP BY `sip` ,`dip` '
+sql='create table if not exists '+datatableindex+' as SELECT sip,dip,MAX(timestamp) - MIN(timestamp) as timedistance,sum(byte)as sumbyte  FROM  `'+datatable+'`  GROUP BY `sip` ,`dip` '
 cursor.execute(sql)
 
 #sql='SELECT `id.orig_h`,`id.resp_h` FROM  `'+datatableindex+'` WHERE StartEndLenMin >30 and sbytesum>0'
-#sql='SELECT `id.orig_h`,`id.resp_h` FROM   `'+datatableindex+'` WHERE StartEndLenMin >'+str(startendlenmin)+' and sbytesum>0'
+#sql='SELECT `id.orig_h`,`id.resp_h` FROM   `'+datatableindex+'` WHERE StartEndLenMin >'+str(startendlenmin)+' and sbytesum > 0'
 sql=' SELECT sip,dip FROM  `'+datatableindex+'` WHERE (sip LIKE  "172.%" OR sip LIKE  "10.%" OR sip LIKE  "192.168.%" ) AND (dip not LIKE  "172.%" and dip not LIKE "10.%" and dip not LIKE  "192.168.%" ) AND timedistance > '+str(startendlensec)
-sql=' SELECT sip,dip FROM  `'+datatableindex+'` WHERE timedistance > '+str(startendlensec)
+sql=' SELECT sip,dip FROM  `'+datatableindex+'` WHERE timedistance >= '+str(startendlensec)+' and sumbyte!=0 '
 print(sql)
 
 listsip=list()

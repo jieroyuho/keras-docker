@@ -1,4 +1,4 @@
-import MySQLdb
+import pymysql
 import time
 import numpy as np
 from sklearn import preprocessing
@@ -41,7 +41,12 @@ database='freqmoear6'
 projectname='moeaconn' #table=projectname , table_index=projectname_sip2dipstate
 path_iplist='/var/www/html/freqweb/freqmoear6/dip_unknow.csv'
 
+database='freqmoear7'
+projectname='conn' #table=projectname , table_index=projectname_sip2dipstate
+path_iplist='/var/www/html/freqweb/freqmoear7/dip_unknow.csv'
 
+
+path_iplist=''
 
 ##########################
 
@@ -155,9 +160,9 @@ def zerofillfromtable(sql,sip):
    listsumsbyte.append(sumsbyte)
    beforet=nowt
 
- print 'time range:',startt,nowt,'=',int(nowt-startt)
- print 'poweron len:',len(listsumsbyte)
- print 'poweroff len:',poweroffsec
+ print('time range:',startt,nowt,'=',int(nowt-startt))
+ print('poweron len:',len(listsumsbyte))
+ print('poweroff len:',poweroffsec)
 
  return listsumsbyte
  #print len(listsumsbyte)
@@ -189,12 +194,12 @@ class collectseg:
     listseg=listsumsbyteall[valuestart:valueend]
     npseg=np.array(listseg)
     valuesum=int(np.sum(npseg))
-    print 'total len:',valuemax,'start:',valuestart,'valuesum:',valuesum
+    print('total len:',valuemax,'start:',valuestart,'valuesum:',valuesum)
     if valuesum>0:
       listseg=self.reduction_pooling(listseg,reductionrate)
       listseg.append(self.label)
       self.listsegall.append(listseg)
-    print 'total listseg:',len(self.listsegall)
+    print('total listseg:',len(self.listsegall))
     valuestart=valueend
     valueend=valuestart+pic
 
@@ -206,7 +211,7 @@ class collectseg:
   list0cut=0
   listsegip=list()
   pic=range
-  reductionrate=range/1800
+  reductionrate=int(range/1800)
   valuestart=0
   valueend=pic
   valuemax=len(listsumsbyteall)
@@ -220,20 +225,29 @@ class collectseg:
       #listseg.append(self.label)
       #self.listsegall.append(listseg)
 
-      min_max_scaler = preprocessing.MinMaxScaler()
+      #min_max_scaler = preprocessing.MinMaxScaler()
+      #listseg=self.reduction_pooling(listseg,reductionrate)
+      #listseg = min_max_scaler.fit_transform(listseg)
+
       listseg=self.reduction_pooling(listseg,reductionrate)
+      listseg=np.array(listseg)
+      listseg=listseg.reshape(-1, 1)
+      min_max_scaler = preprocessing.MinMaxScaler()
       listseg = min_max_scaler.fit_transform(listseg)
     else:
       listseg=self.reduction_pooling(listseg,reductionrate)
+      listseg=np.array(listseg)
+      listseg=listseg.reshape(-1, 1)
       list0cut=list0cut+1
-    print 'listseg len:',len(listseg)
+    listseg=np.ravel(listseg)
+    print('listseg len:',len(listseg))
     listsegip.append(listseg)
     valuestart=valueend
     valueend=valuestart+pic
   npsegip=np.array(listsegip)
 
-  print 'all seg:',len(listsegip)
-  print 'valuesum=0 seg',list0cut
+  print('all seg:',len(listsegip))
+  print('valuesum=0 seg',list0cut)
 
   return npsegip
 
@@ -266,22 +280,21 @@ class collectseg:
 
 
  def show(self):
-  print len(self.listsegall)
+  print(len(self.listsegall))
 
  def getnpdataset(self):
   dataset=np.array(self.listsegall)
   return dataset
  
  def reduction_pooling(self,listseg,reductionrate):
-
    newlistseg=list()
    n=reductionrate
-   for i in range(0,len(listseg),+n):
+   lenlistseg=int(len(listseg))
+   for i in range(0,lenlistseg,+n):
      newlistseg.append( max(listseg[i:i+n]) )
    #print len(listseg)
    #print len(newlistseg)
    return newlistseg
-
 
 
 
@@ -293,7 +306,8 @@ class collectseg:
 #################################
 
 
-db = MySQLdb.connect(host=mysqlurl, user=mysqlid, passwd=mysqlkey, db=database)
+#db = MySQLdb.connect(host=mysqlurl, user=mysqlid, passwd=mysqlkey, db=database)
+db = pymysql.connect(host='localhost', port=3306, user='acer', passwd='acer', db='conndb', charset='utf8')
 cursor = db.cursor()
 cursor.execute('set names utf8')
 
@@ -320,7 +334,6 @@ if path_iplist!='':
     listanswer.append(line.strip())
 else:
   no_listanswer=1
-
 
 listtable=list()
 
@@ -351,18 +364,19 @@ datatable=projectname
 datatype='sip2dipstate'
 datatableindex=datatable+'_'+datatype
 startendlensec=startendlenmin*60
-print 'read table index',datatableindex
+print('read table index',datatableindex)
 
 #create datatableindex
-sql='create table if not exists '+datatableindex+' as SELECT sip,dip,MAX(timestamp) - MIN(timestamp) as timedistance FROM  `'+datatable+'`  GROUP BY `sip` ,`dip` '
+sql='create table if not exists '+datatableindex+' as SELECT sip,dip,MAX(timestamp) - MIN(timestamp)as timedistance ,sum(byte)as sumbyte FROM  `'+datatable+'`  GROUP BY `sip` ,`dip` '
 cursor.execute(sql)
 
 #sql='SELECT `id.orig_h`,`id.resp_h` FROM  `'+datatableindex+'` WHERE StartEndLenMin >30 and sbytesum>0'
 #sql='SELECT `id.orig_h`,`id.resp_h` FROM   `'+datatableindex+'` WHERE StartEndLenMin >'+str(startendlenmin)+' and sbytesum>0'
 sql=' SELECT sip,dip FROM  `'+datatableindex+'` WHERE (sip LIKE  "172.%" OR sip LIKE  "10.%" OR sip LIKE  "192.168.%" ) AND (dip not LIKE  "172.%" and dip not LIKE "10.%" and dip not LIKE  "192.168.%" ) AND timedistance > '+str(startendlensec)
-sql=' SELECT sip,dip FROM  `'+datatableindex+'` WHERE timedistance > '+str(startendlensec)
-listsip=list()
+sql=' SELECT sip,dip FROM  `'+datatableindex+'` WHERE timedistance >= '+str(startendlensec)+' and sumbyte!=0'
+print(sql)
 
+listsip=list()
 
 cursor.execute(sql)
 result = cursor.fetchall()
@@ -383,7 +397,7 @@ for record in result:
   sql="CREATE TABLE IF NOT EXISTS  "+iptable+" AS \
     SELECT FROM_UNIXTIME(trim(timestamp),'%Y-%m-%d %H:%i:%s')AS hms1,SUM(`byte`) AS sumsbyte FROM  `"+datatable+"` WHERE  `sip` =  '"+ip+"' and `dip` =  '"+dip+"'  GROUP BY hms1 "
   #SELECT STR_TO_DATE(ts,'%Y-%M-%d_%H:%i:%s')AS hms1,SUM(  `orig_ip_bytes` ) AS sumsbyte FROM  `"+datatable+"` WHERE  `id.orig_h` =  '"+ip+"' and `id.resp_h` =  '"+dip+"'  GROUP BY hms1"
-  print sql
+  print(sql)
   cursor.execute(sql)
 
   listsip.append(ip)  
@@ -398,7 +412,7 @@ for sip in listsip:
   
   sql="CREATE TABLE IF NOT EXISTS  "+iptable+" AS \
     SELECT SUBSTRING(FROM_UNIXTIME(TRIM(TIMESTAMP),'%Y-%m-%d %H:%i'),1,CHAR_LENGTH(FROM_UNIXTIME(TRIM(TIMESTAMP),'%Y-%m-%d %H:%i')) -1 ) AS hm10, SUM(`byte`) AS sumsbyte FROM  `"+datatable+"` WHERE  `sip` =  '"+sip+"'  GROUP BY hm10 "
-  print sql
+  print(sql)
   cursor.execute(sql)
 
 
@@ -412,14 +426,14 @@ for sip in listsip:
 #listtable=['p2_hms172_31_1_199to210_61_248_234']
 #listtable=['p2_hms172_31_1_199to210_61_248_234','p2_hms172_31_1_12to23_56_24_60']
 
-print 'listtable:',len(listtable)
-finfo=open('unknown_'+datatableindex+str(startendlenmin)+'.info.csv','w')
-datasavefile='unknown_'+datatableindex+str(startendlenmin)+'.csv'
+print('listtable:',len(listtable))
+finfo=open('data/unknown_'+datatableindex+str(startendlenmin)+'.info.csv','w')
+datasavefile='data/unknown_'+datatableindex+str(startendlenmin)+'.csv'
 fdata=open(datasavefile,'a')
 
 dictiptraffic=dict()
 for table in listtable:
- print table
+ print(table)
  sql="select hms1,sumsbyte from "+table
  #tablenew='f0_'+table
 
@@ -431,7 +445,7 @@ for table in listtable:
  
  np.savetxt(fdata,npipseg, delimiter=',',fmt='%10.5f')
 
- print len(npipseg) 
+ print(len(npipseg)) 
  for i in range(0,len(npipseg), +1):
    finfo.write(table+'\n')
 
@@ -445,9 +459,9 @@ for table in listtable:
 
 
 if readmodel!='':
-   print '#######################################################'
-   print '################predict################################'
-   print '#######################################################'
+   print('#######################################################')
+   print('################predict################################')
+   print('#######################################################')
   
    datasavefile_predict='predict_'+datatableindex+str(startendlenmin)+'.csv'
    datasavefile_predictinfo='predict_'+datatableindex+str(startendlenmin)+'info.csv'
@@ -462,7 +476,7 @@ if readmodel!='':
 
    i=0
    for tablename,nptraffic in dictiptraffic.items():
-      print tablename,nptraffic.shape
+      print(tablename,nptraffic.shape)
       #try:
       listresult=model.predict(nptraffic)
       timelen=len(listresult)
@@ -491,7 +505,7 @@ if readmodel!='':
       #except:
       #print 'error'
    
-   print 'ready for writting file from numpy data:',nptrafficlabel.shape
+   print('ready for writting file from numpy data:',nptrafficlabel.shape)
    np.savetxt(datasavefile_predict,nptrafficlabel, delimiter=',',fmt='%10.5f')
 
 
@@ -499,5 +513,5 @@ if readmodel!='':
    f=open('predictresult_badip')
    for line in f:
     listdata=line.strip().split(',')
-    print listdata
+    print(listdata)
 

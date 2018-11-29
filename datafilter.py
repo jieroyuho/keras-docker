@@ -10,18 +10,16 @@ cursor = db.cursor()
 cursor.execute('set names utf8')
 print('db connect finish')
 
-sqlcmd='TRUNCATE conn'
+sqlcmd="DELETE FROM `conn` WHERE  sip NOT LIKE  '10.%' AND sip NOT LIKE  '192.168.%' AND sip NOT LIKE  '172.%' "
 cursor.execute(sqlcmd)
 print(sqlcmd)
 
-#cmd="grep  -vn '.*,.*,.*,10.|172.31.|172.16.|172.23.|172.24.|210.69.|224.|:' "+filepath+" | cut -d ':' -f 2 > conn.csv"
-#os.system(cmd)
-#print(cmd)
-
-cmd="mysqlimport -u root --local --fields-terminated-by=, --password=acer conndb conn.csv" 
-os.system(cmd)
-print(cmd)
-
+sqlcmd=" CREATE TABLE conn_copy LIKE conn"
+cursor.execute(sqlcmd)
+print(sqlcmd)
+sqlcmd=" INSERT conn_copy SELECT * FROM conn"
+cursor.execute(sqlcmd)
+print(sqlcmd)
 
 sqlcmd="create table ipstatus_dip as select dip,sum(byte)as sumbyte,count(distinct sip)as dtsip,count(*) as count from conn group by dip "
 cursor.execute(sqlcmd)

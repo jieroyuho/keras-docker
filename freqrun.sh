@@ -11,25 +11,35 @@ DB_PASS="acer"
 
 SQL1="DROP DATABASE IF EXISTS ${DB_NAME};"
 SQL2="CREATE DATABASE IF NOT EXISTS ${DB_NAME};"
-SQL3="CREATE USER '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';"
-SQL4="GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'%';"
-SQL5="FLUSH PRIVILEGES;"
-SQL6="source ./freq.sql"
+SQL3="DROP USER '${DB_USER}'@'%' ;"
+SQL4="CREATE USER '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';"
+SQL5="GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'%';"
+SQL6="FLUSH PRIVILEGES;"
+SQL7="source ./freq.sql"
 
-mysql -e "${SQL1}${SQL2}${SQL3}${SQL4}${SQL5}"
-mysql -e "${SQL6}"
+echo 'mysql init1'
+echo "${SQL1}${SQL2}${SQL3}${SQL4}${SQL5}${SQL6}"
+mysql -e "${SQL1}${SQL2}${SQL3}${SQL4}${SQL5}${SQL6}"
+echo 'mysql init2'
+mysql -e "${SQL7}"
 
 #=== Run the Datafilter ===
 
+echo 'filter by grep'
 grep -v ':' /data/${fName}  > conn.v1.csv 
-grep -vE '(^[0-9]*,[0-9.]*,[0-9]*,(10.|172.31.|172.16.|172.23.|172.24.|172.69.|224.|239.)[0-9.]*,[0-9]*,[0-9]*$)' conn.v1.csv  > conn.v2.csv  
+grep -vE '(^[0-9]*,[0-9.]*,[0-9]*,(10.|192.168.|172.31.|172.16.|172.23.|172.24.|172.69.|224.|239.|169.254.|255.255.255.255|0.0.0.0)[0-9.]*,[0-9]*,[0-9]*$)' conn.v1.csv  > conn.v2.csv  
 grep -vE '(^[0-9]*,[0-9.]*,[0-9]*,(210.69.)[0-9.]*,[0-9]*,[0-9]*$)|(:)' conn.v2.csv  > conn.v3.csv  
 
 mv conn.v3.csv conn.csv
 rm -f conn.v*
 
+#=== Import data to db ===
+
+mysqlimport -u root --local --fields-terminated-by=, --password=acer conndb conn.csv
+
 #=== Filter the White list ===
 
+echo 'python3 datafilter.py'
 python3 datafilter.py
 
 #=== Excute DB to produce csv
@@ -49,16 +59,15 @@ python3 makedatasetunknown.py 20160 &
 
 #SERVICE=makedatasetunknown.py
 
+
 waitstatus=1
 
 while [ $waitstatus -eq 1 ]
 do
 
 echo $waitstatus
-ps -aux | grep -v grep | grep makedatasetunknown.py > /dev/null
-result=$?
-echo "exit code: ${result}"
-if [ "${result}" -eq "0" ] ; then
+if ps -aux | grep -v grep | grep makedatasetunknown > /dev/null
+then
     echo "`date`: $SERVICE service running, everything is fine"
     waitstatus=1
 else
